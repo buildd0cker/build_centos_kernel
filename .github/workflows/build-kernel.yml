@@ -24,10 +24,17 @@ jobs:
         run: |
           cp .config linux-6.6.47/.config
 
-      - name: Enable Landlock
+      - name: Enable Landlock (Full ABI)
         run: |
           cd linux-6.6.47
+          scripts/config --enable SECURITY
           scripts/config --enable SECURITY_LANDLOCK
+          scripts/config --enable LANDLOCK
+          scripts/config --enable NETWORK_SECURITY
+          scripts/config --enable SECURITY_NETWORK
+          scripts/config --enable SECURITY_PATH
+          # 启用 Landlock 的所有功能
+          scripts/config --enable SECURITY_LANDLOCK_ABI_4
           make olddefconfig
 
       - name: Build kernel
