@@ -1,0 +1,56 @@
+name: Build Linux Kernel 6.6.47 with Landlock
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y build-essential libncurses-dev libssl-dev bison flex bc libelf-dev dwarves wget
+
+      - name: Download kernel
+        run: |
+          wget https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.6.47.tar.xz
+          tar -xvf linux-6.6.47.tar.xz
+
+      - name: Copy CentOS 7 config
+        run: |
+          cp .config linux-6.6.47/.config
+
+      - name: Enable Landlock
+        run: |
+          cd linux-6.6.47
+          scripts/config --enable SECURITY_LANDLOCK
+          make olddefconfig
+
+      - name: Build kernel
+        run: |
+          cd linux-6.6.47
+          make -j $(nproc) all
+
+      - name: Install to temp
+        run: |
+          cd linux-6.6.47
+          mkdir -p /tmp/kernel-install/boot
+          make modules_install INSTALL_MOD_PATH=/tmp/kernel-install
+          cp arch/x86/boot/bzImage /tmp/kernel-install/boot/vmlinuz-6.6.47
+          cp System.map /tmp/kernel-install/boot/System.map-6.6.47
+          cp .config /tmp/kernel-install/boot/config-6.6.47
+
+      - name: Package
+        run: |
+          cd /tmp
+          tar -czvf kernel-6.6.47-landlock.tar.gz kernel-install/
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: kernel-6.6.47-landlock
+          path: /tmp/kernel-6.6.47-landlock.tar.gz
