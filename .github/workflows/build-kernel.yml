@@ -20,25 +20,21 @@ jobs:
           wget https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.6.47.tar.xz
           tar -xvf linux-6.6.47.tar.xz
 
-      - name: Copy CentOS 7 config
-        run: |
-          cp .config linux-6.6.47/.config
-
-      - name: Enable Landlock (Full ABI)
+      - name: Configure kernel with Landlock
         run: |
           cd linux-6.6.47
+          make defconfig
           scripts/config --enable SECURITY
           scripts/config --enable SECURITY_LANDLOCK
           scripts/config --enable LANDLOCK
-          scripts/config --enable NETWORK_SECURITY
-          scripts/config --enable SECURITY_NETWORK
-          scripts/config --enable SECURITY_PATH
           scripts/config --enable SECURITY_LANDLOCK_ABI_4
+          scripts/config --enable SYSCTL
+          scripts/config --enable PROC_FS
+          scripts/config --enable SECURITYFS
           make olddefconfig
-          # 强制写入，防止被覆盖
           echo "CONFIG_LANDLOCK=y" >> .config
           echo "CONFIG_SECURITY_LANDLOCK_ABI_4=y" >> .config
-          make olddefconfig
+          grep -E "LANDLOCK|SECURITY" .config | grep -v "^#"
 
       - name: Verify Landlock config
         run: |
@@ -72,10 +68,8 @@ jobs:
 
       - name: Verify install files
         run: |
-          echo "===== Files in /tmp/kernel-install/boot ====="
           ls -la /tmp/kernel-install/boot/
-          echo "===== config-6.6.47 Landlock entries ====="
-          grep -E "LANDLOCK" /tmp/kernel-install/boot/config-6.6.47 | grep -v "^#" || echo "WARNING: No LANDLOCK entries found!"
+          grep -E "LANDLOCK" /tmp/kernel-install/boot/config-6.6.47 || echo "WARNING: No LANDLOCK entries!"
 
       - name: Package
         run: |
