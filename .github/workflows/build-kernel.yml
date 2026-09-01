@@ -1,4 +1,4 @@
-name: Build Linux Kernel 6.6.47 with Landlock
+name: Build Linux Kernel 6.6.47 with Landlock (CentOS 7 Full Config)
 
 on:
   workflow_dispatch:
@@ -20,27 +20,49 @@ jobs:
           wget https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.6.47.tar.xz
           tar -xvf linux-6.6.47.tar.xz
 
-      - name: Configure kernel with Landlock
+      - name: Copy CentOS 7 full config
+        run: |
+          cp .config linux-6.6.47/.config
+
+      - name: Enable Landlock on CentOS 7 config
         run: |
           cd linux-6.6.47
-          make defconfig
+          # 启用 Landlock
           scripts/config --enable SECURITY
           scripts/config --enable SECURITY_LANDLOCK
           scripts/config --enable LANDLOCK
           scripts/config --enable SECURITY_LANDLOCK_ABI_4
+          # 确保关键依赖为 y（而不是 m）
           scripts/config --enable SYSCTL
           scripts/config --enable PROC_FS
           scripts/config --enable SECURITYFS
+          # 保留 LVM 和 VMware 驱动
+          scripts/config --enable MD
+          scripts/config --enable BLK_DEV_DM
+          scripts/config --enable DM_MIRROR
+          scripts/config --enable DM_SNAPSHOT
+          scripts/config --enable DM_CRYPT
+          scripts/config --enable DM_ZERO
+          scripts/config --enable SCSI_VMWARE_PVSCSI
+          scripts/config --enable VIRTIO
+          scripts/config --enable VIRTIO_PCI
+          scripts/config --enable VIRTIO_BALLOON
+          scripts/config --enable VIRTIO_BLK
+          scripts/config --enable VIRTIO_NET
+          scripts/config --enable VIRTIO_CONSOLE
+          # 处理旧配置的警告
           make olddefconfig
+
+          # 强制写入，防止被覆盖
           echo "CONFIG_LANDLOCK=y" >> .config
           echo "CONFIG_SECURITY_LANDLOCK_ABI_4=y" >> .config
-          grep -E "LANDLOCK|SECURITY" .config | grep -v "^#"
+          make olddefconfig
 
       - name: Verify Landlock config
         run: |
           cd linux-6.6.47
           echo "===== Final Landlock config ====="
-          grep -E "LANDLOCK|SECURITY" .config | grep -v "^#" | sort
+          grep -E "LANDLOCK|SECURITY|MD|DM|VMWARE|VIRTIO" .config | grep -v "^#" | sort
           echo "================================"
           if ! grep -q "CONFIG_LANDLOCK=y" .config; then
             echo "ERROR: CONFIG_LANDLOCK is not enabled!"
@@ -74,10 +96,10 @@ jobs:
       - name: Package
         run: |
           cd /tmp
-          tar -czvf kernel-6.6.47-landlock.tar.gz kernel-install/
+          tar -czvf kernel-6.6.47-landlock-full.tar.gz kernel-install/
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: kernel-6.6.47-landlock
-          path: /tmp/kernel-6.6.47-landlock.tar.gz
+          name: kernel-6.6.47-landlock-full
+          path: /tmp/kernel-6.6.47-landlock-full.tar.gz
