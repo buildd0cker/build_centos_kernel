@@ -53,19 +53,24 @@ jobs:
           # 处理旧配置的警告
           make olddefconfig
 
-          # 强制写入，防止被覆盖
+          # 用 sed 强制修改（在 olddefconfig 之后，不再运行第二次 olddefconfig）
+          sed -i 's/^# CONFIG_LANDLOCK is not set/CONFIG_LANDLOCK=y/' .config
+          sed -i 's/^CONFIG_LANDLOCK=n/CONFIG_LANDLOCK=y/' .config
+          sed -i 's/^# CONFIG_SECURITY_LANDLOCK_ABI_4 is not set/CONFIG_SECURITY_LANDLOCK_ABI_4=y/' .config
+          sed -i 's/^CONFIG_SECURITY_LANDLOCK_ABI_4=n/CONFIG_SECURITY_LANDLOCK_ABI_4=y/' .config
+          # 追加确保存在
           echo "CONFIG_LANDLOCK=y" >> .config
           echo "CONFIG_SECURITY_LANDLOCK_ABI_4=y" >> .config
-          make olddefconfig
 
       - name: Verify Landlock config
         run: |
           cd linux-6.6.47
           echo "===== Final Landlock config ====="
-          grep -E "LANDLOCK|SECURITY|MD|DM|VMWARE|VIRTIO" .config | grep -v "^#" | sort
+          grep -E "LANDLOCK" .config | grep -v "^#"
           echo "================================"
           if ! grep -q "CONFIG_LANDLOCK=y" .config; then
             echo "ERROR: CONFIG_LANDLOCK is not enabled!"
+            cat .config | grep -E "LANDLOCK" || echo "No LANDLOCK entries found"
             exit 1
           fi
           if ! grep -q "CONFIG_SECURITY_LANDLOCK_ABI_4=y" .config; then
