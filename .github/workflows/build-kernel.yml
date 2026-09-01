@@ -33,18 +33,28 @@ jobs:
           scripts/config --enable NETWORK_SECURITY
           scripts/config --enable SECURITY_NETWORK
           scripts/config --enable SECURITY_PATH
-          # 启用 Landlock 的所有功能
           scripts/config --enable SECURITY_LANDLOCK_ABI_4
           make olddefconfig
-          # 强制确认 LANDLOCK 已被启用
-          grep CONFIG_LANDLOCK .config || echo "CONFIG_LANDLOCK=y" >> .config
-          grep CONFIG_SECURITY_LANDLOCK .config || echo "CONFIG_SECURITY_LANDLOCK=y" >> .config
-          grep CONFIG_SECURITY_LANDLOCK_ABI_4 .config || echo "CONFIG_SECURITY_LANDLOCK_ABI_4=y" >> .config
+          # 强制写入，防止被覆盖
+          echo "CONFIG_LANDLOCK=y" >> .config
+          echo "CONFIG_SECURITY_LANDLOCK_ABI_4=y" >> .config
+          make olddefconfig
 
       - name: Verify Landlock config
         run: |
           cd linux-6.6.47
-          grep -E "LANDLOCK|SECURITY" .config | grep -v "^#"
+          echo "===== Final Landlock config ====="
+          grep -E "LANDLOCK|SECURITY" .config | grep -v "^#" | sort
+          echo "================================"
+          if ! grep -q "CONFIG_LANDLOCK=y" .config; then
+            echo "ERROR: CONFIG_LANDLOCK is not enabled!"
+            exit 1
+          fi
+          if ! grep -q "CONFIG_SECURITY_LANDLOCK_ABI_4=y" .config; then
+            echo "ERROR: CONFIG_SECURITY_LANDLOCK_ABI_4 is not enabled!"
+            exit 1
+          fi
+          echo "All Landlock configs verified OK."
 
       - name: Build kernel
         run: |
@@ -59,6 +69,13 @@ jobs:
           cp arch/x86/boot/bzImage /tmp/kernel-install/boot/vmlinuz-6.6.47
           cp System.map /tmp/kernel-install/boot/System.map-6.6.47
           cp .config /tmp/kernel-install/boot/config-6.6.47
+
+      - name: Verify install files
+        run: |
+          echo "===== Files in /tmp/kernel-install/boot ====="
+          ls -la /tmp/kernel-install/boot/
+          echo "===== config-6.6.47 Landlock entries ====="
+          grep -E "LANDLOCK" /tmp/kernel-install/boot/config-6.6.47 | grep -v "^#" || echo "WARNING: No LANDLOCK entries found!"
 
       - name: Package
         run: |
