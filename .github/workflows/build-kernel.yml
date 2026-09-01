@@ -65,16 +65,14 @@ jobs:
       - name: Verify Landlock config
         run: |
           cd linux-6.6.47
-          echo "===== Final Landlock config ====="
-          grep -E "LANDLOCK" .config | grep -v "^#"
-          echo "================================"
+          echo "===== Source .config ====="
+          grep -E "LANDLOCK" .config || echo "WARNING: No LANDLOCK in source .config"
           if ! grep -q "CONFIG_LANDLOCK=y" .config; then
-            echo "ERROR: CONFIG_LANDLOCK is not enabled!"
-            cat .config | grep -E "LANDLOCK" || echo "No LANDLOCK entries found"
+            echo "ERROR: CONFIG_LANDLOCK is not enabled in source .config!"
             exit 1
           fi
           if ! grep -q "CONFIG_SECURITY_LANDLOCK_ABI_4=y" .config; then
-            echo "ERROR: CONFIG_SECURITY_LANDLOCK_ABI_4 is not enabled!"
+            echo "ERROR: CONFIG_SECURITY_LANDLOCK_ABI_4 is not enabled in source .config!"
             exit 1
           fi
           echo "All Landlock configs verified OK."
@@ -92,6 +90,10 @@ jobs:
           cp arch/x86/boot/bzImage /tmp/kernel-install/boot/vmlinuz-6.6.47
           cp System.map /tmp/kernel-install/boot/System.map-6.6.47
           cp .config /tmp/kernel-install/boot/config-6.6.47
+          # 立即验证打包的 config 是否包含 Landlock
+          echo "===== Checking packaged config ====="
+          grep -E "LANDLOCK" /tmp/kernel-install/boot/config-6.6.47 || (echo "ERROR: CONFIG_LANDLOCK not in packaged config!" && exit 1)
+          echo "Packaged config verified OK."
 
       - name: Verify install files
         run: |
