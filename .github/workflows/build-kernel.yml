@@ -36,6 +36,15 @@ jobs:
           # 启用 Landlock 的所有功能
           scripts/config --enable SECURITY_LANDLOCK_ABI_4
           make olddefconfig
+          # 强制确认 LANDLOCK 已被启用
+          grep CONFIG_LANDLOCK .config || echo "CONFIG_LANDLOCK=y" >> .config
+          grep CONFIG_SECURITY_LANDLOCK .config || echo "CONFIG_SECURITY_LANDLOCK=y" >> .config
+          grep CONFIG_SECURITY_LANDLOCK_ABI_4 .config || echo "CONFIG_SECURITY_LANDLOCK_ABI_4=y" >> .config
+
+      - name: Verify Landlock config
+        run: |
+          cd linux-6.6.47
+          grep -E "LANDLOCK|SECURITY" .config | grep -v "^#"
 
       - name: Build kernel
         run: |
